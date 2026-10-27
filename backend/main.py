@@ -1,13 +1,14 @@
-from fastapi import Depends, FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import Depends, FastAPI, Header, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
-from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+import crud
 from auth import create_token, decode_token, hash_password, verify_password
 from database import Base, SessionLocal, User, engine
 
-Base.metadata.create_all(engine)  # users table nahi hai toh bana do
+Base.metadata.create_all(engine)  # jo tables nahi hain woh bana do
 
 app = FastAPI()
 
@@ -20,18 +21,29 @@ def get_db():
         db.close()
 
 
+def get_current_user(authorization: str = Header(default=""), db: Session = Depends(get_db)):
+    """Header 'Authorization: Bearer <token>' se pehchano ki kaun hai."""
+    token = authorization.removeprefix("Bearer ").strip()
+    username = decode_token(token)
+    user = crud.find_user(db, username) if username else None
+    if not user:
+        raise HTTPException(status_code=401, detail="Pehle login karo")
+    return user
+
+
 class Credentials(BaseModel):
     username: str = Field(min_length=3, max_length=20, pattern=r"^[A-Za-z0-9_]+$")
     password: str = Field(min_length=6, max_length=64)
 
 
-def find_user(db: Session, username: str):
-    return db.query(User).filter(func.lower(User.username) == username.lower()).first()
+class NewChat(BaseModel):
+    username: str
 
 
+# ---------- Signup / Login ----------
 @app.post("/api/signup", status_code=201)
 def signup(data: Credentials, db: Session = Depends(get_db)):
-    if find_user(db, data.username):
+    if crud.find_user(db, data.username):
         raise HTTPException(status_code=400, detail="Ye username pehle se liya hua hai")
     user = User(username=data.username, password_hash=hash_password(data.password))
     db.add(user)
@@ -41,33 +53,65 @@ def signup(data: Credentials, db: Session = Depends(get_db)):
 
 @app.post("/api/login")
 def login(data: Credentials, db: Session = Depends(get_db)):
-    user = find_user(db, data.username)
+    user = crud.find_user(db, data.username)
     if not user or not verify_password(data.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Username ya password galat hai")
     return {"token": create_token(user.username), "username": user.username}
 
 
-class RoomManager:
+# ---------- Users aur Chats ----------
+@app.get("/api/users/search")
+def search_users(q: str = "", me: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    q = q.strip()
+    if not q:
+        return []
+    rows = db.query(User).filter(User.username.ilike(f"%{q}%"), User.id != me.id).limit(10).all()
+    return [u.username for u in rows]
+
+
+@app.get("/api/chats")
+def my_chats(me: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    return crud.list_chats(db, me)
+
+
+@app.post("/api/chats")
+def start_chat(data: NewChat, me: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    other = crud.find_user(db, data.username)
+    if not other:
+        raise HTTPException(status_code=404, detail="Ye user nahi mila")
+    if other.id == me.id:
+        raise HTTPException(status_code=400, detail="Apne aap se chat nahi kar sakte")
+    chat = crud.get_or_create_private_chat(db, me, other)
+    return crud.chat_summary(db, chat, me)
+
+
+@app.get("/api/chats/{chat_id}/messages")
+def chat_messages(chat_id: int, me: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    messages = crud.get_messages(db, chat_id, me)
+    if messages is None:
+        raise HTTPException(status_code=404, detail="Chat nahi mili")
+    return messages
+
+
+# ---------- Real-time ----------
+class ConnectionManager:
     def __init__(self):
-        # {"adda": {ws1: "jai", ws2: "amit"}}
-        self.rooms = {}
+        # {"jai": {ws1, ws2}}  (ek user ke kai tabs ho sakte hain)
+        self.users = {}
 
-    async def connect(self, room, ws, username):
+    async def connect(self, username, ws):
         await ws.accept()
-        self.rooms.setdefault(room, {})[ws] = username
+        self.users.setdefault(username, set()).add(ws)
 
-    def disconnect(self, room, ws):
-        if room in self.rooms:
-            self.rooms[room].pop(ws, None)
+    def disconnect(self, username, ws):
+        conns = self.users.get(username)
+        if conns:
+            conns.discard(ws)
+            if not conns:
+                del self.users[username]
 
-    def is_online(self, room, username):
-        return username in self.rooms.get(room, {}).values()
-
-    def users(self, room):
-        return list(dict.fromkeys(self.rooms.get(room, {}).values()))
-
-    async def broadcast(self, room, message, exclude=None):
-        for ws in list(self.rooms.get(room, {})):
+    async def send_to(self, username, message, exclude=None):
+        for ws in list(self.users.get(username, ())):
             if ws is exclude:
                 continue
             try:
@@ -76,7 +120,17 @@ class RoomManager:
                 pass
 
 
-manager = RoomManager()
+manager = ConnectionManager()
+
+
+def _with_db(fn, *args):
+    with SessionLocal() as db:
+        return fn(db, *args)
+
+
+async def run_db(fn, *args):
+    """Database ka kaam alag thread mein chalao, taaki server ruke nahi."""
+    return await run_in_threadpool(_with_db, fn, *args)
 
 
 @app.get("/")
@@ -89,32 +143,50 @@ def health():
     return {"status": "ok"}
 
 
-@app.websocket("/ws/{room}")
-async def chat(ws: WebSocket, room: str, token: str = ""):
+@app.websocket("/ws")
+async def websocket_endpoint(ws: WebSocket, token: str = ""):
     username = decode_token(token)
-    if not username:
+    user = await run_db(crud.find_user, username) if username else None
+    if not user:
         await ws.accept()
-        await ws.close(code=4001)  # 4001 = hamara apna code: "token galat"
+        await ws.close(code=4001)  # 4001 = "token galat, dobara login karo"
         return
 
-    first_tab = not manager.is_online(room, username)
-    await manager.connect(room, ws, username)
-    if first_tab:
-        await manager.broadcast(room, {"type": "system", "text": f"{username} joined"})
-    await manager.broadcast(room, {"type": "users", "users": manager.users(room)})
+    username = user.username
+    await manager.connect(username, ws)
     try:
         while True:
             data = await ws.receive_json()
-            if data["type"] == "message":
-                await manager.broadcast(
-                    room, {"type": "message", "user": username, "text": data["text"]}
-                )
-            elif data["type"] == "typing":
-                await manager.broadcast(
-                    room, {"type": "typing", "user": username}, exclude=ws
-                )
+            kind = data.get("type")
+            chat_id = data.get("chat_id")
+            if not isinstance(chat_id, int):
+                continue
+
+            if kind == "message":
+                text = str(data.get("text", "")).strip()[:500]
+                if not text:
+                    continue
+                result = await run_db(crud.save_message, chat_id, user.id, text)
+                if result is None:  # is chat ke member nahi ho
+                    continue
+                payload = {
+                    "type": "message",
+                    "chat_id": chat_id,
+                    "user": username,
+                    "text": text,
+                    "time": result["time"],
+                }
+                for name in result["recipients"]:
+                    await manager.send_to(name, payload)
+
+            elif kind == "typing":
+                members = await run_db(crud.chat_members, chat_id)
+                if user.id not in [m[0] for m in members]:
+                    continue
+                for _, name in members:
+                    if name != username:
+                        await manager.send_to(name, {"type": "typing", "chat_id": chat_id, "user": username})
     except WebSocketDisconnect:
-        manager.disconnect(room, ws)
-        if not manager.is_online(room, username):
-            await manager.broadcast(room, {"type": "system", "text": f"{username} left"})
-        await manager.broadcast(room, {"type": "users", "users": manager.users(room)})
+        pass
+    finally:
+        manager.disconnect(username, ws)

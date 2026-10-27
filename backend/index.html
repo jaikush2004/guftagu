@@ -9,624 +9,405 @@
 <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700&family=Hind:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
-    --ink: #24224f;
-    --ink-soft: #3a3770;
-    --ink-text: #e9e8fb;
-    --ink-muted: #a9a6d6;
-    --bg: #f4f3fa;
-    --card: #ffffff;
-    --line: #e3e1f0;
-    --text: #25233f;
-    --muted: #7c7a9a;
-    --accent: #f2a93b;
-    --accent-dark: #c98412;
-    --online: #3dbb7a;
-    --radius: 16px;
-    --font-head: "Baloo 2", "Segoe UI", sans-serif;
-    --font-body: "Hind", "Segoe UI", Arial, sans-serif;
+    --ink: #24224f; --ink-soft: #3a3770; --bg: #f4f3fa; --card: #fff; --line: #e8e6f2;
+    --text: #25233f; --muted: #7c7a9a; --accent: #f2a93b; --mine: #ffe6b3; --active: #eeecf8;
+    --font-head: "Baloo 2", "Segoe UI", sans-serif; --font-body: "Hind", "Segoe UI", Arial, sans-serif;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body { height: 100%; }
-  body { overflow: hidden; }
+  html, body { height: 100%; overflow: hidden; }
   body { font-family: var(--font-body); background: var(--bg); color: var(--text); font-size: 16px; }
   button, input { font: inherit; }
   button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 
-  /* ---------- Join screen ---------- */
-  #join {
-    min-height: 100%; display: grid; place-items: center; padding: 20px;
-    background: linear-gradient(160deg, var(--ink) 0%, var(--ink-soft) 100%);
-  }
-  .join-card {
-    width: 100%; max-width: 400px; background: var(--card); border-radius: 24px; padding: 36px 30px;
-    box-shadow: 0 24px 60px rgba(0,0,0,.28);
-  }
+  /* ---------- Auth ---------- */
+  #auth { min-height: 100%; display: grid; place-items: center; padding: 20px; background: linear-gradient(160deg, var(--ink), var(--ink-soft)); }
+  .card { width: 100%; max-width: 400px; background: var(--card); border-radius: 24px; padding: 36px 30px; box-shadow: 0 24px 60px rgba(0,0,0,.28); }
   .logo { display: flex; align-items: center; gap: 12px; margin-bottom: 6px; }
-  .logo-mark {
-    width: 46px; height: 46px; border-radius: 14px 14px 14px 4px; background: var(--accent);
-    display: grid; place-items: center; font-family: var(--font-head); font-weight: 700; font-size: 26px; color: var(--ink);
-  }
+  .logo-mark { width: 46px; height: 46px; border-radius: 14px 14px 14px 4px; background: var(--accent); display: grid; place-items: center; font-family: var(--font-head); font-weight: 700; font-size: 26px; color: var(--ink); }
   .logo h1 { font-family: var(--font-head); font-size: 32px; line-height: 1; color: var(--ink); }
-  .tagline { color: var(--muted); margin-bottom: 26px; }
+  .tagline { color: var(--muted); margin-bottom: 22px; }
+  .tabs { display: flex; background: #eceaf7; border-radius: 12px; padding: 4px; margin-bottom: 18px; }
+  .tabs button { flex: 1; padding: 9px; border: 0; border-radius: 9px; background: transparent; cursor: pointer; font-weight: 600; color: var(--muted); }
+  .tabs button.active { background: #fff; color: var(--ink); box-shadow: 0 1px 4px rgba(0,0,0,.12); }
+  .field { margin-bottom: 16px; }
   label { display: block; font-weight: 600; margin-bottom: 6px; font-size: 15px; }
-  .field { margin-bottom: 18px; }
-  input[type=text], input[type=password] {
-    width: 100%; padding: 12px 14px; border: 1.5px solid var(--line); border-radius: 12px; background: #fbfbfe;
-  }
-  input[type=text]:focus, input[type=password]:focus { border-color: var(--ink-soft); outline: none; box-shadow: 0 0 0 3px rgba(242,169,59,.45); }
-  .room-pick { display: flex; gap: 8px; flex-wrap: wrap; }
-  .room-pick button {
-    padding: 8px 16px; border-radius: 999px; border: 1.5px solid var(--line); background: #fff; cursor: pointer; font-weight: 500;
-  }
-  .room-pick button.active { background: var(--ink); border-color: var(--ink); color: #fff; }
-  .btn-primary {
-    width: 100%; padding: 13px; border: 0; border-radius: 12px; background: var(--accent); color: var(--ink);
-    font-family: var(--font-head); font-weight: 700; font-size: 18px; cursor: pointer; transition: background .15s;
-  }
-  .btn-primary:hover { background: #f5b653; }
-  #join-error { color: #c0392b; font-size: 14px; min-height: 20px; margin-bottom: 8px; }
+  input[type=text], input[type=password] { width: 100%; padding: 12px 14px; border: 1.5px solid var(--line); border-radius: 12px; background: #fbfbfe; }
+  input:focus { border-color: var(--ink-soft); outline: none; box-shadow: 0 0 0 3px rgba(242,169,59,.45); }
+  .btn { width: 100%; padding: 13px; border: 0; border-radius: 12px; background: var(--accent); color: var(--ink); font-family: var(--font-head); font-weight: 700; font-size: 18px; cursor: pointer; }
+  .btn:hover { background: #f5b653; }
+  .btn:disabled { opacity: .6; cursor: wait; }
+  .err { color: #c0392b; font-size: 14px; min-height: 20px; margin-bottom: 8px; }
 
-  /* ---------- App layout ---------- */
-  #app { display: none; height: 100vh; height: 100dvh; }
-  .shell { display: grid; grid-template-columns: 270px 1fr; grid-template-rows: minmax(0, 1fr); height: 100%; }
+  /* ---------- App ---------- */
+  #app { display: none; height: 100vh; height: 100dvh; position: relative; }
+  .shell { display: grid; grid-template-columns: 360px 1fr; grid-template-rows: minmax(0, 1fr); height: 100%; }
+  .left { background: var(--card); border-right: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; }
+  .left-top { flex: none; display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: var(--ink); color: #fff; }
+  .left-top .me { font-family: var(--font-head); font-size: 18px; flex: 1; }
+  .left-top button { border: 1.5px solid rgba(255,255,255,.3); background: transparent; color: #fff; border-radius: 10px; padding: 6px 12px; cursor: pointer; font-size: 14px; }
+  .left-top button:hover { background: rgba(255,255,255,.1); }
+  .search { flex: none; padding: 10px 14px; border-bottom: 1px solid var(--line); }
+  .search input { border-radius: 999px; padding: 10px 16px; background: var(--bg); }
+  #list { flex: 1; overflow-y: auto; }
+  .note { padding: 26px 22px; color: var(--muted); text-align: center; font-size: 15px; }
+  .label { padding: 12px 18px 4px; font-size: 13px; color: var(--muted); font-weight: 600; }
+  .item { display: flex; gap: 12px; align-items: center; padding: 12px 16px; cursor: pointer; border-bottom: 1px solid #f1f0f8; }
+  .item:hover { background: #f8f7fc; }
+  .item.active { background: var(--active); }
+  .item .body { flex: 1; min-width: 0; }
+  .item .row1 { display: flex; justify-content: space-between; gap: 8px; }
+  .item .name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .item .time { font-size: 12px; color: var(--muted); flex: none; }
+  .item .preview { font-size: 14px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .avatar { width: 46px; height: 46px; border-radius: 50%; display: grid; place-items: center; flex: none; font-family: var(--font-head); font-weight: 700; color: #fff; font-size: 20px; }
+  .avatar.sm { width: 40px; height: 40px; font-size: 17px; }
 
-  .sidebar {
-    background: var(--ink); color: var(--ink-text); display: flex; flex-direction: column; padding: 20px 16px; overflow-y: auto;
-  }
-  .sidebar .logo h1 { color: #fff; font-size: 26px; }
-  .sidebar .logo-mark { width: 38px; height: 38px; font-size: 21px; }
-  .sidebar h3 { font-family: var(--font-head); font-size: 15px; font-weight: 500; color: var(--ink-muted); margin: 26px 0 8px; }
-  .room-list { list-style: none; }
-  .room-list button {
-    width: 100%; text-align: left; padding: 10px 12px; border: 0; border-radius: 10px; background: transparent;
-    color: var(--ink-text); cursor: pointer; font-weight: 500;
-  }
-  .room-list button:hover { background: rgba(255,255,255,.08); }
-  .room-list button.active { background: var(--ink-soft); box-shadow: inset 3px 0 0 var(--accent); }
-  .user-list { list-style: none; }
-  .user-list li { display: flex; align-items: center; gap: 10px; padding: 7px 4px; }
-  .user-list .me { color: var(--ink-muted); font-size: 13px; }
-  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--online); margin-left: auto; flex: none; }
-  .avatar {
-    width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; flex: none;
-    font-family: var(--font-head); font-weight: 700; color: #fff; font-size: 16px;
-  }
-  .leave {
-    margin-top: auto; padding: 10px; border-radius: 10px; border: 1.5px solid rgba(255,255,255,.2);
-    background: transparent; color: var(--ink-text); cursor: pointer;
-  }
-  .leave:hover { background: rgba(255,255,255,.08); }
-
-  .main { display: flex; flex-direction: column; min-width: 0; min-height: 0; height: 100%; overflow: hidden; }
-  .topbar {
-    flex: none; display: flex; align-items: center; gap: 12px; padding: 14px 22px; background: var(--card); border-bottom: 1px solid var(--line);
-  }
-  .menu-btn { display: none; border: 0; background: transparent; font-size: 24px; cursor: pointer; color: var(--ink); }
-  .topbar h2 { font-family: var(--font-head); font-size: 22px; color: var(--ink); line-height: 1.1; }
-  .status { font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
-  .status::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: #bbb; }
-  .status.live::before { background: var(--online); }
-  .status.off::before { background: #d9534f; }
-
-  #messages { flex: 1; min-height: 0; overflow-y: auto; padding: 22px; display: flex; flex-direction: column; gap: 10px; }
-  .empty { margin: auto; text-align: center; color: var(--muted); max-width: 260px; }
-  .empty b { display: block; font-family: var(--font-head); font-size: 20px; color: var(--ink); margin-bottom: 4px; }
-
-  .row { display: flex; gap: 10px; align-items: flex-end; max-width: 78%; }
-  .row.mine { align-self: flex-end; flex-direction: row-reverse; }
-  .bubble {
-    padding: 9px 14px; border-radius: 18px 18px 18px 4px; background: var(--card); border: 1px solid var(--line);
-    overflow-wrap: anywhere; line-height: 1.45;
-  }
-  .row.mine .bubble { background: var(--ink); color: #fff; border-color: var(--ink); border-radius: 18px 18px 4px 18px; }
-  .who { font-size: 13px; font-weight: 600; margin-bottom: 1px; }
-  .time { font-size: 11px; opacity: .6; margin-top: 2px; text-align: right; }
-  .system { align-self: center; font-size: 13px; color: var(--muted); background: #eceaf7; padding: 4px 14px; border-radius: 999px; }
-
-  .typing { flex: none; height: 24px; padding: 0 24px; font-size: 14px; color: var(--muted); display: flex; align-items: center; gap: 8px; }
-  .typing .dots span {
-    display: inline-block; width: 5px; height: 5px; border-radius: 50%; background: var(--muted); margin-right: 2px;
-    animation: bounce 1s infinite;
-  }
-  .typing .dots span:nth-child(2) { animation-delay: .15s; }
-  .typing .dots span:nth-child(3) { animation-delay: .3s; }
-  @keyframes bounce { 0%, 60%, 100% { transform: translateY(0); } 30% { transform: translateY(-4px); } }
-
-  .composer { flex: none; display: flex; gap: 10px; padding: 14px 22px 18px; background: var(--bg); }
-  .composer input {
-    flex: 1; padding: 13px 18px; border-radius: 999px; border: 1.5px solid var(--line); background: #fff;
-  }
-  .composer input:focus { border-color: var(--ink-soft); outline: none; box-shadow: 0 0 0 3px rgba(242,169,59,.45); }
-  .send {
-    width: 48px; height: 48px; border: 0; border-radius: 50%; background: var(--accent); color: var(--ink);
-    cursor: pointer; display: grid; place-items: center; flex: none; transition: background .15s;
-  }
+  .right { min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+  .placeholder { margin: auto; text-align: center; color: var(--muted); max-width: 300px; padding: 20px; }
+  .placeholder .logo-mark { margin: 0 auto 14px; width: 64px; height: 64px; font-size: 36px; }
+  .placeholder b { display: block; font-family: var(--font-head); font-size: 22px; color: var(--ink); margin-bottom: 4px; }
+  #chat { display: none; flex-direction: column; height: 100%; min-height: 0; }
+  .chat-top { flex: none; display: flex; align-items: center; gap: 12px; padding: 10px 16px; background: var(--card); border-bottom: 1px solid var(--line); }
+  .back { display: none; border: 0; background: transparent; font-size: 24px; cursor: pointer; color: var(--ink); }
+  #chat-name { font-weight: 600; line-height: 1.2; }
+  #chat-sub { font-size: 13px; color: #2a9d6a; min-height: 18px; }
+  #messages { flex: 1; min-height: 0; overflow-y: auto; padding: 18px 8%; display: flex; flex-direction: column; gap: 6px;
+    background-color: #efecf8; background-image: radial-gradient(rgba(36,34,79,.07) 1.3px, transparent 1.3px); background-size: 22px 22px; }
+  .day { align-self: center; font-size: 12px; color: var(--muted); background: #fff; padding: 3px 12px; border-radius: 999px; margin: 8px 0; box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+  .bubble { max-width: 70%; padding: 7px 12px 5px; border-radius: 14px 14px 14px 4px; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.1); overflow-wrap: anywhere; line-height: 1.4; }
+  .bubble.mine { align-self: flex-end; background: var(--mine); border-radius: 14px 14px 4px 14px; }
+  .bubble .t { font-size: 11px; color: var(--muted); text-align: right; margin-top: 2px; }
+  .composer { flex: none; display: flex; gap: 10px; padding: 10px 16px 12px; background: var(--card); border-top: 1px solid var(--line); }
+  .composer input { flex: 1; border-radius: 999px; padding: 12px 18px; background: var(--bg); }
+  .send { width: 46px; height: 46px; border: 0; border-radius: 50%; background: var(--accent); color: var(--ink); cursor: pointer; display: grid; place-items: center; flex: none; }
   .send:hover { background: #f5b653; }
   .send svg { width: 22px; height: 22px; }
-
-  .tabs { display: flex; background: #eceaf7; border-radius: 12px; padding: 4px; margin-bottom: 18px; }
-  .tabs button {
-    flex: 1; padding: 9px; border: 0; border-radius: 9px; background: transparent; cursor: pointer;
-    font-weight: 600; color: var(--muted);
-  }
-  .tabs button.active { background: #fff; color: var(--ink); box-shadow: 0 1px 4px rgba(0,0,0,.12); }
-  .welcome {
-    display: none; align-items: center; justify-content: space-between; gap: 10px;
-    background: #f4f3fa; border-radius: 12px; padding: 12px 14px; margin-bottom: 18px;
-  }
-  .welcome button { border: 0; background: transparent; color: var(--ink-soft); text-decoration: underline; cursor: pointer; }
-  .hint { font-size: 13px; color: var(--muted); margin-top: 6px; }
-  .add-room { display: flex; gap: 6px; margin-top: 8px; }
-  .add-room input {
-    flex: 1; min-width: 0; padding: 9px 12px; border-radius: 10px; border: 1.5px solid rgba(255,255,255,.2);
-    background: rgba(255,255,255,.08); color: #fff;
-  }
-  .add-room input::placeholder { color: var(--ink-muted); }
-  .add-room input:focus { outline: none; border-color: var(--accent); }
-  .add-room button {
-    width: 40px; border: 0; border-radius: 10px; background: var(--accent); color: var(--ink);
-    font-size: 22px; font-weight: 700; cursor: pointer;
-  }
-  .room-error { color: #ffb4a8; font-size: 13px; min-height: 18px; margin-top: 6px; }
-  .scrim { display: none; }
+  #banner { display: none; position: absolute; top: 0; left: 50%; transform: translateX(-50%); background: #c0392b; color: #fff; padding: 6px 16px; border-radius: 0 0 12px 12px; font-size: 14px; z-index: 5; }
 
   @media (max-width: 760px) {
     .shell { grid-template-columns: 1fr; }
-    .sidebar {
-      position: fixed; inset: 0 auto 0 0; width: 280px; z-index: 20; transform: translateX(-100%); transition: transform .25s;
-    }
-    .sidebar.open { transform: translateX(0); }
-    .scrim.open { display: block; position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 10; }
-    .menu-btn { display: block; }
-    .row { max-width: 90%; }
-    #messages, .composer { padding-left: 14px; padding-right: 14px; }
+    .right { display: none; }
+    .shell.chat-open .left { display: none; }
+    .shell.chat-open .right { display: flex; }
+    .back { display: block; }
+    #messages { padding: 14px 12px; }
+    .bubble { max-width: 85%; }
   }
-  @media (prefers-reduced-motion: reduce) {
-    * { animation: none !important; transition: none !important; }
-  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 </style>
 </head>
 <body>
 
-<!-- ============ JOIN SCREEN ============ -->
-<section id="join">
-  <div class="join-card">
+<!-- ============ AUTH ============ -->
+<section id="auth">
+  <div class="card">
     <div class="logo"><div class="logo-mark">ग</div><h1>Guftagu</h1></div>
-    <p class="tagline">Dosto ke saath live baatein.</p>
-
-    <div class="tabs" id="tabs">
+    <p class="tagline">Dosto se seedhi baat.</p>
+    <div class="tabs">
       <button type="button" id="tab-login" class="active">Login</button>
       <button type="button" id="tab-signup">Naya account</button>
     </div>
-    <div id="auth-fields">
-      <div class="field">
-        <label for="name">Username</label>
-        <input id="name" type="text" maxlength="20" placeholder="Jaise: jai_07" autocomplete="username">
-      </div>
-      <div class="field">
-        <label for="password">Password</label>
-        <input id="password" type="password" maxlength="64" placeholder="Kam se kam 6 akshar" autocomplete="current-password">
-      </div>
-    </div>
-    <div class="welcome" id="welcome">
-      <span>Namaste, <b id="welcome-name"></b></span>
-      <button type="button" id="logout-link">Account badlo</button>
-    </div>
-    <div class="field">
-      <label for="room-input">Room ka naam</label>
-      <input id="room-input" type="text" maxlength="20" placeholder="Jaise: dosto-ka-adda" autocomplete="off">
-      <div class="hint">Jo naam likhoge wahi room ban jayega. Dost bhi yahi naam likhein toh tumhare saath judenge.</div>
-    </div>
-    <div id="join-error"></div>
-    <button class="btn-primary" id="join-btn">Chat shuru karo</button>
+    <div class="field"><label for="name">Username</label><input id="name" type="text" maxlength="20" placeholder="Jaise: jai_07" autocomplete="username"></div>
+    <div class="field"><label for="password">Password</label><input id="password" type="password" maxlength="64" placeholder="Kam se kam 6 akshar" autocomplete="current-password"></div>
+    <div class="err" id="auth-error"></div>
+    <button class="btn" id="auth-btn">Login karo</button>
   </div>
 </section>
 
-<!-- ============ CHAT APP ============ -->
+<!-- ============ APP ============ -->
 <div id="app">
-  <div class="shell">
-    <aside class="sidebar" id="sidebar">
-      <div class="logo"><div class="logo-mark">ग</div><h1>Guftagu</h1></div>
-
-      <h3>Rooms</h3>
-      <ul class="room-list" id="room-list"></ul>
-      <div class="add-room">
-        <input id="new-room" type="text" maxlength="20" placeholder="Naya room banao" autocomplete="off">
-        <button id="add-room-btn" aria-label="Room banao">+</button>
-      </div>
-      <div class="room-error" id="room-error"></div>
-
-      <h3>Online abhi (<span id="user-count">0</span>)</h3>
-      <ul class="user-list" id="user-list"></ul>
-
-      <button class="leave" id="leave-btn">Bahar niklo</button>
+  <div id="banner">Connection toot gaya, dobara connect ho raha hai...</div>
+  <div class="shell" id="shell">
+    <aside class="left">
+      <header class="left-top"><span class="me" id="me"></span><button id="logout">Logout</button></header>
+      <div class="search"><input id="search" type="text" placeholder="User dhundo, naya chat shuru karo" autocomplete="off"></div>
+      <div id="list"></div>
     </aside>
-    <div class="scrim" id="scrim"></div>
-
-    <main class="main">
-      <header class="topbar">
-        <button class="menu-btn" id="menu-btn" aria-label="Menu kholo">☰</button>
-        <div>
-          <h2 id="room-title"># General</h2>
-          <div class="status" id="status">Connect ho raha hai</div>
-        </div>
-      </header>
-
-      <div id="messages"></div>
-      <div class="typing" id="typing"></div>
-
-      <div class="composer">
-        <input id="msg" type="text" maxlength="500" placeholder="Message likho..." autocomplete="off">
-        <button class="send" id="send-btn" aria-label="Message bhejo">
-          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3.4 20.4 22 12 3.4 3.6 3.3 10l13 2-13 2z"/></svg>
-        </button>
+    <main class="right">
+      <div class="placeholder" id="placeholder">
+        <div class="logo-mark">ग</div><b>Guftagu</b>
+        Left side se koi chat chuno, ya search karke kisi dost se naya chat shuru karo.
       </div>
+      <section id="chat">
+        <header class="chat-top">
+          <button class="back" id="back" aria-label="Wapas">←</button>
+          <div id="chat-avatar"></div>
+          <div><div id="chat-name"></div><div id="chat-sub"></div></div>
+        </header>
+        <div id="messages"></div>
+        <div class="composer">
+          <input id="msg" type="text" maxlength="500" placeholder="Message likho..." autocomplete="off">
+          <button class="send" id="send" aria-label="Bhejo"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3.4 20.4 22 12 3.4 3.6 3.3 10l13 2-13 2z"/></svg></button>
+        </div>
+      </section>
     </main>
   </div>
 </div>
 
 <script>
   const COLORS = ["#e4572e", "#2e86ab", "#7b4fd1", "#2a9d8f", "#d1495b", "#c98412", "#4361ee", "#6a994e"];
-
-  let ws = null;
-  let username = "";
-  let token = "";        // server ne diya JWT token
-  let mode = "login";    // "login" ya "signup"
-  let room = "";
-  let myRooms = []; // jin rooms mein aap ja chuke ho
-  let lastTypingSent = 0;
-  let intentionalClose = false;
-  let reconnectTimer = null;
-  const typers = {}; // { name: timeoutId }
-
+  let token = "", username = "", mode = "login";
+  let chats = [], activeId = null, ws = null, closing = false, wasDown = false;
+  let reconnectTimer, typingTimer, searchTimer, lastTypingSent = 0, lastDay = "";
   const $ = (id) => document.getElementById(id);
 
-  function colorFor(name) {
-    let h = 0;
-    for (const c of name) h = (h * 31 + c.charCodeAt(0)) >>> 0;
-    return COLORS[h % COLORS.length];
-  }
-  function makeAvatar(name) {
+  /* ---------- Helpers ---------- */
+  function colorFor(name) { let h = 0; for (const c of name) h = (h * 31 + c.charCodeAt(0)) >>> 0; return COLORS[h % COLORS.length]; }
+  function makeAvatar(name, small) {
     const a = document.createElement("div");
-    a.className = "avatar";
+    a.className = "avatar" + (small ? " sm" : "");
     a.style.background = colorFor(name);
     a.textContent = name.charAt(0).toUpperCase();
     return a;
   }
-  function nowTime() {
-    return new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; }
+  function hhmm(iso) { return new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }); }
+  function dayLabel(iso) {
+    const d = new Date(iso), today = new Date(), y = new Date();
+    y.setDate(today.getDate() - 1);
+    if (d.toDateString() === today.toDateString()) return "Aaj";
+    if (d.toDateString() === y.toDateString()) return "Kal";
+    return d.toLocaleDateString([], { day: "numeric", month: "short", year: "numeric" });
+  }
+  function listTime(iso) {
+    return new Date(iso).toDateString() === new Date().toDateString() ? hhmm(iso) : dayLabel(iso);
   }
 
-  /* ---------- Join screen ---------- */
-  function cleanRoom(raw) {
-    // chhota karo, space ko - banao, taaki "Cricket Fans" aur "cricket-fans" ek hi room ho
-    return raw.trim().toLowerCase().replace(/\s+/g, "-");
-  }
-  function validRoom(r) {
-    return r.length > 0 && /^[\w\u0900-\u097F-]+$/.test(r);
+  // Har server request yahin se jaati hai, token header mein lagake
+  async function api(path, opts = {}) {
+    const res = await fetch(path, {
+      ...opts,
+      headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
+    });
+    if (res.status === 401 && token) { logout("Login ki meaad khatam ho gayi. Dobara login karo."); throw new Error("login"); }
+    const data = await res.json().catch(() => null);
+    if (!res.ok) {
+      const err = new Error(typeof data?.detail === "string" ? data.detail : "Kuch galat ho gaya");
+      err.status = res.status;
+      throw err;
+    }
+    return data;
   }
 
+  /* ---------- Login / Signup ---------- */
   function setMode(m) {
     mode = m;
     $("tab-login").classList.toggle("active", m === "login");
     $("tab-signup").classList.toggle("active", m === "signup");
-    $("join-btn").textContent = m === "login" ? "Login karo" : "Account banao";
-    $("password").autocomplete = m === "login" ? "current-password" : "new-password";
-    $("join-error").textContent = "";
+    $("auth-btn").textContent = m === "login" ? "Login karo" : "Account banao";
+    $("auth-error").textContent = "";
   }
-
-  // Login hai toh naam dikhao, nahi hai toh login/signup form dikhao
-  function showWelcome() {
-    const loggedIn = !!token;
-    $("tabs").style.display = loggedIn ? "none" : "flex";
-    $("auth-fields").style.display = loggedIn ? "none" : "block";
-    $("welcome").style.display = loggedIn ? "flex" : "none";
-    if (loggedIn) {
-      $("welcome-name").textContent = username;
-      $("join-btn").textContent = "Chat shuru karo";
-    } else {
-      setMode(mode);
-    }
+  async function submitAuth() {
+    const name = $("name").value.trim(), pw = $("password").value;
+    if (!name || !pw) { $("auth-error").textContent = "Username aur password dono likho."; return; }
+    $("auth-btn").disabled = true;
+    try {
+      const d = await api("/api/" + mode, { method: "POST", body: JSON.stringify({ username: name, password: pw }) });
+      token = d.token; username = d.username;
+      sessionStorage.setItem("guftagu_token", token);
+      sessionStorage.setItem("guftagu_user", username);
+      $("password").value = "";
+      enterApp();
+    } catch (e) {
+      $("auth-error").textContent = e.status === 422
+        ? "Username 3-20 akshar (a-z, 0-9, _) aur password 6-64 akshar ka hona chahiye."
+        : e.message;
+    } finally { $("auth-btn").disabled = false; }
   }
-
+  function enterApp() {
+    $("auth").style.display = "none";
+    $("app").style.display = "block";
+    $("me").textContent = username;
+    loadChats();
+    connectWS();
+  }
   function logout(message) {
-    leave();
-    token = "";
-    username = "";
+    closing = true;
+    clearTimeout(reconnectTimer);
+    if (ws) ws.close();
+    ws = null; token = ""; username = ""; chats = []; activeId = null;
     sessionStorage.removeItem("guftagu_token");
     sessionStorage.removeItem("guftagu_user");
-    showWelcome();
-    $("join-error").textContent = message || "";
+    $("shell").classList.remove("chat-open");
+    $("chat").style.display = "none";
+    $("placeholder").style.display = "";
+    $("banner").style.display = "none";
+    $("app").style.display = "none";
+    $("auth").style.display = "grid";
+    $("auth-error").textContent = message || "";
   }
 
-  async function startChat() {
-    const r = cleanRoom($("room-input").value);
-    if (!validRoom(r)) {
-      $("join-error").textContent = "Room ka naam likho (sirf akshar, number ya -).";
-      return;
-    }
+  /* ---------- Chat list ---------- */
+  async function loadChats() {
+    chats = await api("/api/chats");
+    refreshList();
+  }
+  function refreshList() { if (!$("search").value.trim()) renderList(); }
+  function renderList() {
+    const box = $("list");
+    box.innerHTML = "";
+    if (!chats.length) { box.appendChild(el("div", "note", "Abhi koi chat nahi. Upar search karke kisi dost ko dhundo.")); return; }
+    chats.forEach((c) => {
+      const item = el("div", "item" + (c.id === activeId ? " active" : ""));
+      item.appendChild(makeAvatar(c.name));
+      const body = el("div", "body");
+      const row = el("div", "row1");
+      row.appendChild(el("span", "name", c.name));
+      row.appendChild(el("span", "time", c.last_text ? listTime(c.last_time) : ""));
+      body.appendChild(row);
+      const prefix = c.last_user === username ? "Aap: " : "";
+      body.appendChild(el("div", "preview", c.last_text ? prefix + c.last_text : "Chat shuru karo"));
+      item.appendChild(body);
+      item.onclick = () => openChat(c.id);
+      box.appendChild(item);
+    });
+  }
 
-    if (!token) {
-      const name = $("name").value.trim();
-      const pw = $("password").value;
-      if (!name || !pw) {
-        $("join-error").textContent = "Username aur password dono likho.";
-        return;
-      }
-      $("join-btn").disabled = true;
+  /* ---------- Search users ---------- */
+  function onSearch() {
+    clearTimeout(searchTimer);
+    const q = $("search").value.trim();
+    if (!q) { renderList(); return; }
+    searchTimer = setTimeout(async () => {
       try {
-        const res = await fetch("/api/" + mode, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username: name, password: pw }),
+        const users = await api("/api/users/search?q=" + encodeURIComponent(q));
+        if ($("search").value.trim() !== q) return; // tab tak kuch aur likh diya
+        const box = $("list");
+        box.innerHTML = "";
+        box.appendChild(el("div", "label", "Users"));
+        if (!users.length) box.appendChild(el("div", "note", "Koi user nahi mila."));
+        users.forEach((u) => {
+          const item = el("div", "item");
+          item.appendChild(makeAvatar(u));
+          const body = el("div", "body");
+          body.appendChild(el("div", "name", u));
+          body.appendChild(el("div", "preview", "Chat shuru karo"));
+          item.appendChild(body);
+          item.onclick = () => startChatWith(u);
+          box.appendChild(item);
         });
-        const data = await res.json();
-        if (!res.ok) {
-          $("join-error").textContent = typeof data.detail === "string"
-            ? data.detail
-            : "Username 3-20 akshar (a-z, 0-9, _) aur password 6-64 akshar ka hona chahiye.";
-          return;
-        }
-        token = data.token;
-        username = data.username;
-        sessionStorage.setItem("guftagu_token", token);
-        sessionStorage.setItem("guftagu_user", username);
-        $("password").value = "";
-        showWelcome();
-      } catch (e) {
-        $("join-error").textContent = "Server se connect nahi ho paya. Server chal raha hai?";
-        return;
-      } finally {
-        $("join-btn").disabled = false;
-      }
-    }
+      } catch (e) {}
+    }, 250);
+  }
+  async function startChatWith(name) {
+    try {
+      const c = await api("/api/chats", { method: "POST", body: JSON.stringify({ username: name }) });
+      if (!chats.find((x) => x.id === c.id)) chats.unshift(c);
+      $("search").value = "";
+      openChat(c.id);
+    } catch (e) { alert(e.message); }
+  }
 
-    room = r;
-    if (!myRooms.includes(r)) myRooms.push(r);
-    $("join-error").textContent = "";
-    $("join").style.display = "none";
-    $("app").style.display = "block";
-    renderRooms();
-    connect();
+  /* ---------- Open chat + messages ---------- */
+  async function openChat(id) {
+    const c = chats.find((x) => x.id === id);
+    if (!c) return;
+    activeId = id;
+    $("shell").classList.add("chat-open");
+    $("placeholder").style.display = "none";
+    $("chat").style.display = "flex";
+    $("chat-name").textContent = c.name;
+    $("chat-sub").textContent = "";
+    $("chat-avatar").replaceChildren(makeAvatar(c.name, true));
+    renderList();
+    await loadMessages(id);
     $("msg").focus();
   }
-
-  /* ---------- Sidebar ---------- */
-  function renderRooms() {
-    const ul = $("room-list");
-    ul.innerHTML = "";
-    myRooms.forEach((r) => {
-      const li = document.createElement("li");
-      const b = document.createElement("button");
-      b.textContent = "# " + r;
-      if (r === room) b.className = "active";
-      b.onclick = () => { switchRoom(r); closeMenu(); };
-      li.appendChild(b);
-      ul.appendChild(li);
-    });
-    $("room-title").textContent = "# " + room;
-  }
-
-  function switchRoom(r) {
-    if (r === room) return;
-    room = r;
-    renderRooms();
-    connect();
-  }
-
-  function addRoom() {
-    const r = cleanRoom($("new-room").value);
-    if (!validRoom(r)) {
-      $("room-error").textContent = "Naam mein sirf akshar, number ya - chalega.";
-      return;
-    }
-    $("room-error").textContent = "";
-    $("new-room").value = "";
-    if (!myRooms.includes(r)) myRooms.push(r);
-    switchRoom(r);
-    closeMenu();
-  }
-
-  function renderUsers(users) {
-    const ul = $("user-list");
-    ul.innerHTML = "";
-    $("user-count").textContent = users.length;
-    users.forEach((u) => {
-      const li = document.createElement("li");
-      li.appendChild(makeAvatar(u));
-      const span = document.createElement("span");
-      span.textContent = u;
-      li.appendChild(span);
-      if (u === username) {
-        const me = document.createElement("span");
-        me.className = "me";
-        me.textContent = "(aap)";
-        li.appendChild(me);
-      }
-      const dot = document.createElement("span");
-      dot.className = "dot";
-      li.appendChild(dot);
-      ul.appendChild(li);
-    });
-  }
-
-  /* ---------- Messages ---------- */
-  function showEmpty() {
+  async function loadMessages(id) {
     $("messages").innerHTML = "";
-    const d = document.createElement("div");
-    d.className = "empty";
-    d.id = "empty";
-    d.innerHTML = "<b>Abhi koi message nahi</b>Pehla message bhejkar baat shuru karo.";
-    $("messages").appendChild(d);
+    lastDay = "";
+    try {
+      const msgs = await api(`/api/chats/${id}/messages`);
+      if (activeId !== id) return; // tab tak dusri chat khol li
+      msgs.forEach(addMessage);
+    } catch (e) {}
   }
-  function removeEmpty() { const e = $("empty"); if (e) e.remove(); }
-  function scrollDown() { const m = $("messages"); m.scrollTop = m.scrollHeight; }
-
-  function addSystem(text) {
-    removeEmpty();
-    const d = document.createElement("div");
-    d.className = "system";
-    d.textContent = text;
-    $("messages").appendChild(d);
-    scrollDown();
+  function addMessage(m) {
+    const box = $("messages");
+    const day = dayLabel(m.time);
+    if (day !== lastDay) { box.appendChild(el("div", "day", day)); lastDay = day; }
+    const b = el("div", "bubble" + (m.user === username ? " mine" : ""));
+    b.appendChild(el("div", "", m.text));
+    b.appendChild(el("div", "t", hhmm(m.time)));
+    box.appendChild(b);
+    box.scrollTop = box.scrollHeight;
   }
-
-  function addMessage(user, text) {
-    removeEmpty();
-    const mine = user === username;
-    const row = document.createElement("div");
-    row.className = "row" + (mine ? " mine" : "");
-    if (!mine) row.appendChild(makeAvatar(user));
-
-    const bubble = document.createElement("div");
-    bubble.className = "bubble";
-    if (!mine) {
-      const who = document.createElement("div");
-      who.className = "who";
-      who.style.color = colorFor(user);
-      who.textContent = user;
-      bubble.appendChild(who);
-    }
-    const body = document.createElement("div");
-    body.textContent = text;
-    bubble.appendChild(body);
-    const t = document.createElement("div");
-    t.className = "time";
-    t.textContent = nowTime();
-    bubble.appendChild(t);
-
-    row.appendChild(bubble);
-    $("messages").appendChild(row);
-    scrollDown();
-  }
-
-  /* ---------- Typing indicator ---------- */
-  function renderTyping() {
-    const names = Object.keys(typers);
-    const box = $("typing");
-    if (!names.length) { box.innerHTML = ""; return; }
-    const label = names.length === 1 ? names[0] + " type kar raha hai" : names.join(", ") + " type kar rahe hain";
-    box.innerHTML = '<span class="dots"><span></span><span></span><span></span></span>';
-    const s = document.createElement("span");
-    s.textContent = label;
-    box.appendChild(s);
-  }
-  function someoneTyping(name) {
-    clearTimeout(typers[name]);
-    typers[name] = setTimeout(() => { delete typers[name]; renderTyping(); }, 2000);
-    renderTyping();
-  }
-  function clearTypers() {
-    Object.keys(typers).forEach((k) => { clearTimeout(typers[k]); delete typers[k]; });
-    renderTyping();
+  function closeChat() {
+    activeId = null;
+    $("shell").classList.remove("chat-open");
+    $("chat").style.display = "none";
+    $("placeholder").style.display = "";
+    renderList();
   }
 
   /* ---------- WebSocket ---------- */
-  function setStatus(text, cls) {
-    const s = $("status");
-    s.textContent = text;
-    s.className = "status " + (cls || "");
-  }
-
-  function connect() {
+  function connectWS() {
     clearTimeout(reconnectTimer);
-    if (ws) { intentionalClose = true; ws.close(); }
-    showEmpty();
-    clearTypers();
-    renderUsers([]);
-    renderRooms();
-    setStatus("Connect ho raha hai", "");
-
+    closing = false;
     const proto = location.protocol === "https:" ? "wss" : "ws";
-    const socket = new WebSocket(`${proto}://${location.host}/ws/${encodeURIComponent(room)}?token=${encodeURIComponent(token)}`);
+    const socket = new WebSocket(`${proto}://${location.host}/ws?token=${encodeURIComponent(token)}`);
     ws = socket;
-    intentionalClose = false;
 
-    socket.onopen = () => setStatus("Live", "live");
-
-    socket.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      if (data.type === "message") {
-        delete typers[data.user]; renderTyping();
-        addMessage(data.user, data.text);
-      } else if (data.type === "system") {
-        addSystem(data.text);
-      } else if (data.type === "users") {
-        renderUsers(data.users);
-      } else if (data.type === "typing") {
-        someoneTyping(data.user);
+    socket.onopen = () => {
+      $("banner").style.display = "none";
+      if (wasDown) { wasDown = false; loadChats(); if (activeId) loadMessages(activeId); } // beech ke messages le aao
+    };
+    socket.onmessage = async (event) => {
+      const d = JSON.parse(event.data);
+      if (d.type === "message") {
+        let c = chats.find((x) => x.id === d.chat_id);
+        if (!c) {                       // kisi ne pehli baar message kiya
+          await loadChats();
+        } else {
+          c.last_text = d.text; c.last_user = d.user; c.last_time = d.time;
+          chats = [c, ...chats.filter((x) => x !== c)];  // chat upar aa jaye
+          refreshList();
+        }
+        if (d.chat_id === activeId) { addMessage(d); $("chat-sub").textContent = ""; }
+      } else if (d.type === "typing" && d.chat_id === activeId) {
+        $("chat-sub").textContent = "typing...";
+        clearTimeout(typingTimer);
+        typingTimer = setTimeout(() => ($("chat-sub").textContent = ""), 2000);
       }
     };
-
     socket.onclose = (ev) => {
-      if (socket !== ws) return; // purana connection, ignore
-      if (ev.code === 4001) {    // server ne token reject kiya
-        logout("Login ki meaad khatam ho gayi. Dobara login karo.");
-        return;
-      }
-      if (intentionalClose) return;
-      setStatus("Connection toot gaya, dobara try ho raha hai", "off");
-      reconnectTimer = setTimeout(connect, 2500);
+      if (socket !== ws) return;
+      if (ev.code === 4001) { logout("Login ki meaad khatam ho gayi. Dobara login karo."); return; }
+      if (closing) return;
+      wasDown = true;
+      $("banner").style.display = "block";
+      reconnectTimer = setTimeout(connectWS, 2500);
     };
   }
-
   function sendMessage() {
-    const input = $("msg");
-    const text = input.value.trim();
-    if (!text || !ws || ws.readyState !== WebSocket.OPEN) return;
-    ws.send(JSON.stringify({ type: "message", text }));
+    const input = $("msg"), text = input.value.trim();
+    if (!text || !activeId || !ws || ws.readyState !== WebSocket.OPEN) return;
+    ws.send(JSON.stringify({ type: "message", chat_id: activeId, text }));
     input.value = "";
   }
-
   function sendTyping() {
-    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    if (!activeId || !ws || ws.readyState !== WebSocket.OPEN) return;
     const now = Date.now();
-    if (now - lastTypingSent > 1000) {
-      ws.send(JSON.stringify({ type: "typing" }));
-      lastTypingSent = now;
-    }
+    if (now - lastTypingSent > 1000) { ws.send(JSON.stringify({ type: "typing", chat_id: activeId })); lastTypingSent = now; }
   }
-
-  function leave() {
-    intentionalClose = true;
-    clearTimeout(reconnectTimer);
-    if (ws) ws.close();
-    ws = null;
-    myRooms = [];
-    room = "";
-    $("app").style.display = "none";
-    $("join").style.display = "grid";
-    $("join-error").textContent = "";
-    closeMenu();
-  }
-
-  /* ---------- Mobile menu ---------- */
-  function openMenu() { $("sidebar").classList.add("open"); $("scrim").classList.add("open"); }
-  function closeMenu() { $("sidebar").classList.remove("open"); $("scrim").classList.remove("open"); }
 
   /* ---------- Events ---------- */
-  $("join-btn").onclick = startChat;
-  $("name").addEventListener("keydown", (e) => { if (e.key === "Enter") startChat(); });
-  $("password").addEventListener("keydown", (e) => { if (e.key === "Enter") startChat(); });
   $("tab-login").onclick = () => setMode("login");
   $("tab-signup").onclick = () => setMode("signup");
-  $("logout-link").onclick = () => logout("");
-  $("send-btn").onclick = sendMessage;
+  $("auth-btn").onclick = submitAuth;
+  $("name").addEventListener("keydown", (e) => { if (e.key === "Enter") submitAuth(); });
+  $("password").addEventListener("keydown", (e) => { if (e.key === "Enter") submitAuth(); });
+  $("logout").onclick = () => logout("");
+  $("search").addEventListener("input", onSearch);
+  $("send").onclick = sendMessage;
   $("msg").addEventListener("keydown", (e) => { if (e.key === "Enter") sendMessage(); });
   $("msg").addEventListener("input", sendTyping);
-  $("leave-btn").onclick = leave;
-  $("menu-btn").onclick = openMenu;
-  $("scrim").onclick = closeMenu;
-
-  $("add-room-btn").onclick = addRoom;
-  $("new-room").addEventListener("keydown", (e) => { if (e.key === "Enter") addRoom(); });
-  $("room-input").addEventListener("keydown", (e) => { if (e.key === "Enter") startChat(); });
+  $("back").onclick = closeChat;
 
   // Page khulte hi: pehle se login hai kya?
   token = sessionStorage.getItem("guftagu_token") || "";
   username = sessionStorage.getItem("guftagu_user") || "";
-  if (!token || !username) { token = ""; username = ""; }
-  showWelcome();
+  if (token && username) enterApp(); else { token = ""; username = ""; }
 </script>
 </body>
 </html>
