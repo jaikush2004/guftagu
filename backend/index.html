@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <title>Guftagu Test</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 500px; margin: 30px auto; }
+    #chat { list-style: none; padding: 0; height: 300px; overflow-y: auto;
+            border: 1px solid #ccc; padding: 10px; }
+    #chat li { margin-bottom: 6px; }
+    .system { color: gray; font-style: italic; }
+  </style>
+</head>
+<body>
+  <h2>Guftagu (test page)</h2>
+
+  <input id="name" placeholder="Apna naam">
+  <button onclick="join()">Join General</button>
+
+  <ul id="chat"></ul>
+
+  <input id="msg" placeholder="Message likho">
+  <button onclick="send()">Send</button>
+
+  <script>
+    let ws;
+
+    function join() {
+      const name = document.getElementById("name").value;
+      if (!name) { alert("Pehle naam likho"); return; }
+
+      ws = new WebSocket(`ws://${location.host}/ws/General/${name}`);
+
+      ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        const li = document.createElement("li");
+        li.textContent = data.user + ": " + data.text;
+        if (data.user === "System") li.className = "system";
+        document.getElementById("chat").appendChild(li);
+      };
+    }
+
+    function send() {
+      const input = document.getElementById("msg");
+      if (!ws || !input.value) return;
+      ws.send(input.value);
+      input.value = "";
+    }
+  </script>
+</body>
+</html>
