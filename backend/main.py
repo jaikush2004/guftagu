@@ -31,6 +31,12 @@ def get_current_user(authorization: str = Header(default=""), db: Session = Depe
     return user
 
 
+def add_presence(chat):
+    """Private chat mein dikhao ki samne wala abhi online hai ya nahi."""
+    chat["online"] = bool(chat["other"]) and chat["other"] in manager.users
+    return chat
+
+
 class Credentials(BaseModel):
     username: str = Field(min_length=3, max_length=20, pattern=r"^[A-Za-z0-9_]+$")
     password: str = Field(min_length=6, max_length=64)
@@ -71,7 +77,7 @@ def search_users(q: str = "", me: User = Depends(get_current_user), db: Session 
 
 @app.get("/api/chats")
 def my_chats(me: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    return crud.list_chats(db, me)
+    return [add_presence(c) for c in crud.list_chats(db, me)]
 
 
 @app.post("/api/chats")
@@ -82,7 +88,7 @@ def start_chat(data: NewChat, me: User = Depends(get_current_user), db: Session 
     if other.id == me.id:
         raise HTTPException(status_code=400, detail="Apne aap se chat nahi kar sakte")
     chat = crud.get_or_create_private_chat(db, me, other)
-    return crud.chat_summary(db, chat, me)
+    return add_presence(crud.chat_summary(db, chat, me))
 
 
 @app.get("/api/chats/{chat_id}/messages")
@@ -133,6 +139,14 @@ async def run_db(fn, *args):
     return await run_in_threadpool(_with_db, fn, *args)
 
 
+async def notify_presence(user, online, last_seen=None):
+    """User ke contacts ko batao ki wo online aaya ya gaya."""
+    names = await run_db(crud.contacts, user.id)
+    payload = {"type": "presence", "user": user.username, "online": online, "last_seen": last_seen}
+    for name in names:
+        await manager.send_to(name, payload)
+
+
 @app.get("/")
 def home():
     return FileResponse("index.html")
@@ -153,7 +167,10 @@ async def websocket_endpoint(ws: WebSocket, token: str = ""):
         return
 
     username = user.username
+    first_tab = username not in manager.users
     await manager.connect(username, ws)
+    if first_tab:
+        await notify_presence(user, True)
     try:
         while True:
             data = await ws.receive_json()
@@ -179,6 +196,9 @@ async def websocket_endpoint(ws: WebSocket, token: str = ""):
                 for name in result["recipients"]:
                     await manager.send_to(name, payload)
 
+            elif kind == "read":
+                await run_db(crud.mark_read, chat_id, user.id)
+
             elif kind == "typing":
                 members = await run_db(crud.chat_members, chat_id)
                 if user.id not in [m[0] for m in members]:
@@ -190,3 +210,6 @@ async def websocket_endpoint(ws: WebSocket, token: str = ""):
         pass
     finally:
         manager.disconnect(username, ws)
+        if username not in manager.users:  # aakhri tab band hua
+            last_seen = await run_db(crud.set_last_seen, user.id)
+            await notify_presence(user, False, last_seen)

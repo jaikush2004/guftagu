@@ -19,6 +19,7 @@ class User(Base):
     username = Column(String(20), unique=True, nullable=False)
     password_hash = Column(String(100), nullable=False)
     created_at = Column(DateTime, default=utc_now)
+    last_seen = Column(DateTime)  # aakhri baar kab online tha
 
 
 class Conversation(Base):
@@ -35,6 +36,7 @@ class Participant(Base):
 
     conversation_id = Column(Integer, ForeignKey("conversations.id"), primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"), primary_key=True)
+    last_read_id = Column(Integer, default=0, nullable=False)  # is chat ka kaun sa message tak padh liya
 
 
 class Message(Base):

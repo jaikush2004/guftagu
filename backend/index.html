@@ -61,6 +61,13 @@
   .item .preview { font-size: 14px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .avatar { width: 46px; height: 46px; border-radius: 50%; display: grid; place-items: center; flex: none; font-family: var(--font-head); font-weight: 700; color: #fff; font-size: 20px; }
   .avatar.sm { width: 40px; height: 40px; font-size: 17px; }
+  .av-wrap { position: relative; flex: none; }
+  .av-wrap .dot { position: absolute; right: 0; bottom: 0; width: 13px; height: 13px; border-radius: 50%; background: #3dbb7a; border: 2px solid #fff; }
+  .item .row2 { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .item .row2 .preview { flex: 1; min-width: 0; }
+  .badge { flex: none; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px; background: var(--accent); color: var(--ink); font-size: 12px; font-weight: 700; display: grid; place-items: center; }
+  .item.unread .time { color: #b97a0a; font-weight: 600; }
+  .item.unread .preview { color: var(--text); font-weight: 600; }
 
   .right { min-width: 0; min-height: 0; display: flex; flex-direction: column; }
   .placeholder { margin: auto; text-align: center; color: var(--muted); max-width: 300px; padding: 20px; }
@@ -70,7 +77,8 @@
   .chat-top { flex: none; display: flex; align-items: center; gap: 12px; padding: 10px 16px; background: var(--card); border-bottom: 1px solid var(--line); }
   .back { display: none; border: 0; background: transparent; font-size: 24px; cursor: pointer; color: var(--ink); }
   #chat-name { font-weight: 600; line-height: 1.2; }
-  #chat-sub { font-size: 13px; color: #2a9d6a; min-height: 18px; }
+  #chat-sub { font-size: 13px; color: var(--muted); min-height: 18px; }
+  #chat-sub.live { color: #2a9d6a; }
   #messages { flex: 1; min-height: 0; overflow-y: auto; padding: 18px 8%; display: flex; flex-direction: column; gap: 6px;
     background-color: #efecf8; background-image: radial-gradient(rgba(36,34,79,.07) 1.3px, transparent 1.3px); background-size: 22px 22px; }
   .day { align-self: center; font-size: 12px; color: var(--muted); background: #fff; padding: 3px 12px; border-radius: 999px; margin: 8px 0; box-shadow: 0 1px 2px rgba(0,0,0,.08); }
@@ -148,7 +156,7 @@
   const COLORS = ["#e4572e", "#2e86ab", "#7b4fd1", "#2a9d8f", "#d1495b", "#c98412", "#4361ee", "#6a994e"];
   let token = "", username = "", mode = "login";
   let chats = [], activeId = null, ws = null, closing = false, wasDown = false;
-  let reconnectTimer, typingTimer, searchTimer, lastTypingSent = 0, lastDay = "";
+  let reconnectTimer, typingTimer, searchTimer, lastTypingSent = 0, lastDay = "", typingNow = false;
   const $ = (id) => document.getElementById(id);
 
   /* ---------- Helpers ---------- */
@@ -171,6 +179,36 @@
   }
   function listTime(iso) {
     return new Date(iso).toDateString() === new Date().toDateString() ? hhmm(iso) : dayLabel(iso);
+  }
+
+  function lastSeenText(iso) { return dayLabel(iso).toLowerCase() + " " + hhmm(iso); }
+  function updateTitle() {
+    const n = chats.reduce((sum, c) => sum + (c.unread || 0), 0);
+    document.title = n ? `(${n}) Guftagu` : "Guftagu";
+  }
+  function avatarWithDot(c, small) {
+    const w = el("div", "av-wrap");
+    w.appendChild(makeAvatar(c.name, small));
+    if (c.online) w.appendChild(el("span", "dot"));
+    return w;
+  }
+  // Header ke neeche: typing... / online / last seen
+  function updateSub() {
+    const c = chats.find((x) => x.id === activeId);
+    const sub = $("chat-sub");
+    sub.className = "";
+    if (!c) { sub.textContent = ""; return; }
+    if (typingNow) { sub.textContent = "typing..."; sub.className = "live"; }
+    else if (c.online) { sub.textContent = "online"; sub.className = "live"; }
+    else if (c.last_seen) { sub.textContent = "last seen " + lastSeenText(c.last_seen); }
+    else { sub.textContent = ""; }
+  }
+  // Is chat ke messages padh liye: server ko batao, badge hatao
+  function markRead() {
+    const c = chats.find((x) => x.id === activeId);
+    if (!c || !ws || ws.readyState !== WebSocket.OPEN) return;
+    ws.send(JSON.stringify({ type: "read", chat_id: activeId }));
+    if (c.unread) { c.unread = 0; refreshList(); }
   }
 
   // Har server request yahin se jaati hai, token header mein lagake
@@ -241,22 +279,27 @@
   async function loadChats() {
     chats = await api("/api/chats");
     refreshList();
+    updateSub();
   }
-  function refreshList() { if (!$("search").value.trim()) renderList(); }
+  function refreshList() { updateTitle(); if (!$("search").value.trim()) renderList(); }
   function renderList() {
+    updateTitle();
     const box = $("list");
     box.innerHTML = "";
     if (!chats.length) { box.appendChild(el("div", "note", "Abhi koi chat nahi. Upar search karke kisi dost ko dhundo.")); return; }
     chats.forEach((c) => {
-      const item = el("div", "item" + (c.id === activeId ? " active" : ""));
-      item.appendChild(makeAvatar(c.name));
+      const item = el("div", "item" + (c.id === activeId ? " active" : "") + (c.unread ? " unread" : ""));
+      item.appendChild(avatarWithDot(c));
       const body = el("div", "body");
       const row = el("div", "row1");
       row.appendChild(el("span", "name", c.name));
       row.appendChild(el("span", "time", c.last_text ? listTime(c.last_time) : ""));
       body.appendChild(row);
+      const row2 = el("div", "row2");
       const prefix = c.last_user === username ? "Aap: " : "";
-      body.appendChild(el("div", "preview", c.last_text ? prefix + c.last_text : "Chat shuru karo"));
+      row2.appendChild(el("div", "preview", c.last_text ? prefix + c.last_text : "Chat shuru karo"));
+      if (c.unread) row2.appendChild(el("span", "badge", c.unread > 99 ? "99+" : String(c.unread)));
+      body.appendChild(row2);
       item.appendChild(body);
       item.onclick = () => openChat(c.id);
       box.appendChild(item);
@@ -303,12 +346,14 @@
     const c = chats.find((x) => x.id === id);
     if (!c) return;
     activeId = id;
+    c.unread = 0;
+    typingNow = false;
     $("shell").classList.add("chat-open");
     $("placeholder").style.display = "none";
     $("chat").style.display = "flex";
     $("chat-name").textContent = c.name;
-    $("chat-sub").textContent = "";
-    $("chat-avatar").replaceChildren(makeAvatar(c.name, true));
+    updateSub();
+    $("chat-avatar").replaceChildren(avatarWithDot(c, true));
     renderList();
     await loadMessages(id);
     $("msg").focus();
@@ -355,19 +400,33 @@
     socket.onmessage = async (event) => {
       const d = JSON.parse(event.data);
       if (d.type === "message") {
+        const viewing = d.chat_id === activeId && !document.hidden;
+        const fromOther = d.user !== username;
         let c = chats.find((x) => x.id === d.chat_id);
         if (!c) {                       // kisi ne pehli baar message kiya
-          await loadChats();
+          await loadChats();            // server se unread count bhi aa jayega
         } else {
           c.last_text = d.text; c.last_user = d.user; c.last_time = d.time;
+          if (fromOther && !viewing) c.unread = (c.unread || 0) + 1;
           chats = [c, ...chats.filter((x) => x !== c)];  // chat upar aa jaye
           refreshList();
         }
-        if (d.chat_id === activeId) { addMessage(d); $("chat-sub").textContent = ""; }
-      } else if (d.type === "typing" && d.chat_id === activeId) {
-        $("chat-sub").textContent = "typing...";
-        clearTimeout(typingTimer);
-        typingTimer = setTimeout(() => ($("chat-sub").textContent = ""), 2000);
+        if (d.chat_id === activeId) {
+          addMessage(d);
+          if (fromOther) { typingNow = false; updateSub(); if (viewing) markRead(); }
+        }
+      } else if (d.type === "typing") {
+        if (d.chat_id === activeId) {
+          typingNow = true; updateSub();
+          clearTimeout(typingTimer);
+          typingTimer = setTimeout(() => { typingNow = false; updateSub(); }, 2000);
+        }
+      } else if (d.type === "presence") {
+        chats.forEach((c) => {
+          if (c.other === d.user) { c.online = d.online; if (d.last_seen) c.last_seen = d.last_seen; }
+        });
+        refreshList();
+        updateSub();
       }
     };
     socket.onclose = (ev) => {
@@ -403,6 +462,7 @@
   $("msg").addEventListener("keydown", (e) => { if (e.key === "Enter") sendMessage(); });
   $("msg").addEventListener("input", sendTyping);
   $("back").onclick = closeChat;
+  document.addEventListener("visibilitychange", () => { if (!document.hidden && activeId) markRead(); });
 
   // Page khulte hi: pehle se login hai kya?
   token = sessionStorage.getItem("guftagu_token") || "";

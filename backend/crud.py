@@ -1,5 +1,7 @@
 from sqlalchemy import func, select
 
+from datetime import datetime, timezone
+
 from database import Conversation, Message, Participant, User
 
 
@@ -52,16 +54,22 @@ def get_or_create_private_chat(db, me, other):
 
 
 def chat_summary(db, chat, me):
+    other_name = None
+    last_seen = None
     if chat.is_group:
         name = chat.name
     else:
         other = (
-            db.query(User.username)
+            db.query(User)
             .join(Participant, Participant.user_id == User.id)
             .filter(Participant.conversation_id == chat.id, User.id != me.id)
             .first()
         )
         name = other.username if other else "Unknown"
+        other_name = other.username if other else None
+        if other and other.last_seen:
+            last_seen = iso(other.last_seen)
+
     last = (
         db.query(Message)
         .filter(Message.conversation_id == chat.id)
@@ -71,10 +79,30 @@ def chat_summary(db, chat, me):
     last_user = ""
     if last:
         last_user = db.query(User.username).filter(User.id == last.sender_id).scalar()
+
+    # Unread = mere last_read_id ke baad ke wo messages jo kisi aur ne bheje
+    mine = (
+        db.query(Participant)
+        .filter(Participant.conversation_id == chat.id, Participant.user_id == me.id)
+        .first()
+    )
+    read_id = mine.last_read_id if mine else 0
+    unread = (
+        db.query(func.count(Message.id))
+        .filter(
+            Message.conversation_id == chat.id,
+            Message.id > read_id,
+            Message.sender_id != me.id,
+        )
+        .scalar()
+    )
     return {
         "id": chat.id,
         "name": name,
         "is_group": chat.is_group,
+        "other": other_name,
+        "last_seen": last_seen,
+        "unread": unread,
         "last_text": last.text if last else "",
         "last_user": last_user,
         "last_time": iso(last.created_at if last else chat.created_at),
@@ -106,6 +134,7 @@ def get_messages(db, chat_id, me, limit=50):
         .all()
     )
     rows.reverse()
+    mark_read(db, chat_id, me.id)  # chat khol li = padh li
     return [{"user": name, "text": m.text, "time": iso(m.created_at)} for m, name in rows]
 
 
@@ -119,3 +148,41 @@ def save_message(db, chat_id, user_id, text):
     db.commit()
     db.refresh(msg)
     return {"time": iso(msg.created_at), "recipients": [m[1] for m in members]}
+
+
+def mark_read(db, chat_id, user_id):
+    """Is chat ke saare abhi tak ke messages padh liye."""
+    latest = (
+        db.query(func.max(Message.id)).filter(Message.conversation_id == chat_id).scalar() or 0
+    )
+    p = (
+        db.query(Participant)
+        .filter(Participant.conversation_id == chat_id, Participant.user_id == user_id)
+        .first()
+    )
+    if p and latest > p.last_read_id:
+        p.last_read_id = latest
+        db.commit()
+
+
+def set_last_seen(db, user_id):
+    """Abhi ka time 'last seen' mein save karo aur wapas do."""
+    now = datetime.now(timezone.utc)
+    user = db.get(User, user_id)
+    if user:
+        user.last_seen = now
+        db.commit()
+    return iso(now)
+
+
+def contacts(db, user_id):
+    """Jin logon ke saath is user ki koi chat hai, unke usernames."""
+    mine = select(Participant.conversation_id).where(Participant.user_id == user_id)
+    rows = (
+        db.query(User.username)
+        .join(Participant, Participant.user_id == User.id)
+        .filter(Participant.conversation_id.in_(mine), User.id != user_id)
+        .distinct()
+        .all()
+    )
+    return [r.username for r in rows]
