@@ -37,6 +37,7 @@ class Participant(Base):
     conversation_id = Column(Integer, ForeignKey("conversations.id"), primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"), primary_key=True)
     last_read_id = Column(Integer, default=0, nullable=False)  # is chat ka kaun sa message tak padh liya
+    last_delivered_id = Column(Integer, default=0, nullable=False)  # kaun sa message tak is user ke paas pahunch gaya
 
 
 class Message(Base):

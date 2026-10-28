@@ -147,6 +147,12 @@ async def notify_presence(user, online, last_seen=None):
         await manager.send_to(name, payload)
 
 
+async def push_receipts(chat_id):
+    """Chat ke har member ko uske ticks ka naya haal bhejo."""
+    for name, receipts in await run_db(crud.receipts_for_members, chat_id):
+        await manager.send_to(name, {"type": "status", "chat_id": chat_id, **receipts})
+
+
 @app.get("/")
 def home():
     return FileResponse("index.html")
@@ -171,6 +177,9 @@ async def websocket_endpoint(ws: WebSocket, token: str = ""):
     await manager.connect(username, ws)
     if first_tab:
         await notify_presence(user, True)
+        # Jab tak offline tha, jo messages aaye the wo ab 'delivered' ho gaye
+        for cid in await run_db(crud.mark_all_delivered, user.id):
+            await push_receipts(cid)
     try:
         while True:
             data = await ws.receive_json()
@@ -189,6 +198,7 @@ async def websocket_endpoint(ws: WebSocket, token: str = ""):
                 payload = {
                     "type": "message",
                     "chat_id": chat_id,
+                    "id": result["id"],
                     "user": username,
                     "text": text,
                     "time": result["time"],
@@ -196,8 +206,15 @@ async def websocket_endpoint(ws: WebSocket, token: str = ""):
                 for name in result["recipients"]:
                     await manager.send_to(name, payload)
 
+                # Jo samne wale abhi online hain, unke paas message pahunch gaya (double tick)
+                online_others = [n for n in result["recipients"] if n != username and n in manager.users]
+                if online_others:
+                    await run_db(crud.mark_delivered, chat_id, online_others, result["id"])
+                    await push_receipts(chat_id)
+
             elif kind == "read":
                 await run_db(crud.mark_read, chat_id, user.id)
+                await push_receipts(chat_id)  # bhejne walon ko neele tick dikhao
 
             elif kind == "typing":
                 members = await run_db(crud.chat_members, chat_id)

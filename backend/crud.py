@@ -135,7 +135,21 @@ def get_messages(db, chat_id, me, limit=50):
     )
     rows.reverse()
     mark_read(db, chat_id, me.id)  # chat khol li = padh li
-    return [{"user": name, "text": m.text, "time": iso(m.created_at)} for m, name in rows]
+
+    # Mere bheje messages ke ticks: baaki logon ne kaun si id tak receive/padha
+    r = chat_receipts(db, chat_id, me.id)
+    result = []
+    for m, name in rows:
+        item = {"id": m.id, "user": name, "text": m.text, "time": iso(m.created_at)}
+        if name == me.username:
+            if m.id <= r["read_upto"]:
+                item["status"] = "read"
+            elif m.id <= r["delivered_upto"]:
+                item["status"] = "delivered"
+            else:
+                item["status"] = "sent"
+        result.append(item)
+    return result
 
 
 def save_message(db, chat_id, user_id, text):
@@ -147,11 +161,11 @@ def save_message(db, chat_id, user_id, text):
     db.add(msg)
     db.commit()
     db.refresh(msg)
-    return {"time": iso(msg.created_at), "recipients": [m[1] for m in members]}
+    return {"id": msg.id, "time": iso(msg.created_at), "recipients": [m[1] for m in members]}
 
 
 def mark_read(db, chat_id, user_id):
-    """Is chat ke saare abhi tak ke messages padh liye."""
+    """Is chat ke saare abhi tak ke messages padh liye (aur zaahir hai receive bhi)."""
     latest = (
         db.query(func.max(Message.id)).filter(Message.conversation_id == chat_id).scalar() or 0
     )
@@ -160,9 +174,65 @@ def mark_read(db, chat_id, user_id):
         .filter(Participant.conversation_id == chat_id, Participant.user_id == user_id)
         .first()
     )
-    if p and latest > p.last_read_id:
-        p.last_read_id = latest
+    if p:
+        if latest > p.last_read_id:
+            p.last_read_id = latest
+        if latest > p.last_delivered_id:
+            p.last_delivered_id = latest
         db.commit()
+
+
+def mark_delivered(db, chat_id, usernames, upto_id):
+    """In users ke paas message `upto_id` tak pahunch gaya."""
+    rows = (
+        db.query(Participant)
+        .join(User, User.id == Participant.user_id)
+        .filter(Participant.conversation_id == chat_id, User.username.in_(usernames))
+        .all()
+    )
+    for p in rows:
+        if upto_id > p.last_delivered_id:
+            p.last_delivered_id = upto_id
+    db.commit()
+
+
+def mark_all_delivered(db, user_id):
+    """User online aaya: uski saari chats ke pending messages 'delivered' ho gaye.
+    Wo chat ids wapas do jinme kuch badla."""
+    changed = []
+    parts = db.query(Participant).filter(Participant.user_id == user_id).all()
+    for p in parts:
+        latest = (
+            db.query(func.max(Message.id))
+            .filter(Message.conversation_id == p.conversation_id)
+            .scalar()
+            or 0
+        )
+        if latest > p.last_delivered_id:
+            p.last_delivered_id = latest
+            changed.append(p.conversation_id)
+    db.commit()
+    return changed
+
+
+def chat_receipts(db, chat_id, viewer_id):
+    """Viewer ke bheje messages ka haal: baaki sabke paas kaun si id tak pahuncha / padha gaya."""
+    others = (
+        db.query(Participant)
+        .filter(Participant.conversation_id == chat_id, Participant.user_id != viewer_id)
+        .all()
+    )
+    if not others:
+        return {"delivered_upto": 0, "read_upto": 0}
+    return {
+        "delivered_upto": min(p.last_delivered_id for p in others),
+        "read_upto": min(p.last_read_id for p in others),
+    }
+
+
+def receipts_for_members(db, chat_id):
+    """Har member ke liye uska apna ticks ka haal: [(username, receipts), ...]"""
+    return [(name, chat_receipts(db, chat_id, uid)) for uid, name in chat_members(db, chat_id)]
 
 
 def set_last_seen(db, user_id):

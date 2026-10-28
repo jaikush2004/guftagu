@@ -84,7 +84,20 @@
   .day { align-self: center; font-size: 12px; color: var(--muted); background: #fff; padding: 3px 12px; border-radius: 999px; margin: 8px 0; box-shadow: 0 1px 2px rgba(0,0,0,.08); }
   .bubble { max-width: 70%; padding: 7px 12px 5px; border-radius: 14px 14px 14px 4px; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.1); overflow-wrap: anywhere; line-height: 1.4; }
   .bubble.mine { align-self: flex-end; background: var(--mine); border-radius: 14px 14px 4px 14px; }
-  .bubble .t { font-size: 11px; color: var(--muted); text-align: right; margin-top: 2px; }
+  .bubble .t { font-size: 11px; color: var(--muted); margin-top: 2px; display: flex; justify-content: flex-end; align-items: center; gap: 3px; }
+  .ticks { display: inline-flex; }
+  .ticks svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .ticks.sent, .ticks.delivered { color: var(--muted); }
+  .ticks.read { color: #1d8fd1; }
+  .composer { position: relative; }
+  .emoji-btn { flex: none; width: 42px; height: 46px; border: 0; background: transparent; font-size: 24px; cursor: pointer; border-radius: 50%; }
+  .emoji-btn:hover { background: var(--bg); }
+  #emoji-panel { display: none; position: absolute; bottom: 100%; left: 12px; width: min(340px, calc(100vw - 24px)); max-height: 220px; overflow-y: auto;
+    background: #fff; border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 8px 28px rgba(0,0,0,.18); padding: 8px; z-index: 6;
+    grid-template-columns: repeat(8, 1fr); gap: 2px; }
+  #emoji-panel.open { display: grid; }
+  #emoji-panel button { border: 0; background: transparent; font-size: 24px; padding: 5px 0; cursor: pointer; border-radius: 8px; }
+  #emoji-panel button:hover { background: var(--bg); }
   .composer { flex: none; display: flex; gap: 10px; padding: 10px 16px 12px; background: var(--card); border-top: 1px solid var(--line); }
   .composer input { flex: 1; border-radius: 999px; padding: 12px 18px; background: var(--bg); }
   .send { width: 46px; height: 46px; border: 0; border-radius: 50%; background: var(--accent); color: var(--ink); cursor: pointer; display: grid; place-items: center; flex: none; }
@@ -144,6 +157,8 @@
         </header>
         <div id="messages"></div>
         <div class="composer">
+          <div id="emoji-panel"></div>
+          <button class="emoji-btn" id="emoji-btn" type="button" aria-label="Emoji">😊</button>
           <input id="msg" type="text" maxlength="500" placeholder="Message likho..." autocomplete="off">
           <button class="send" id="send" aria-label="Bhejo"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3.4 20.4 22 12 3.4 3.6 3.3 10l13 2-13 2z"/></svg></button>
         </div>
@@ -157,6 +172,8 @@
   let token = "", username = "", mode = "login";
   let chats = [], activeId = null, ws = null, closing = false, wasDown = false;
   let reconnectTimer, typingTimer, searchTimer, lastTypingSent = 0, lastDay = "", typingNow = false;
+  const myTicks = new Map();   // message id -> tick ka element (sirf mere bheje messages)
+  const RANK = { sent: 0, delivered: 1, read: 2 };
   const $ = (id) => document.getElementById(id);
 
   /* ---------- Helpers ---------- */
@@ -192,6 +209,23 @@
     if (c.online) w.appendChild(el("span", "dot"));
     return w;
   }
+  // Ticks: ✓ bheja, ✓✓ pahuncha, neela ✓✓ padha
+  const TICK1 = '<svg viewBox="0 0 16 16"><path d="M3 8.5l3.5 3.5L13 5"/></svg>';
+  const TICK2 = '<svg viewBox="0 0 16 16"><path d="M1 8.5l3.5 3.5L11 5"/><path d="M6 11.5l1 1L15 5"/></svg>';
+  function setTick(tk, status) {
+    const cur = tk.dataset.status;
+    if (cur && RANK[status] <= RANK[cur]) return;   // status sirf aage badhta hai, peeche nahi
+    tk.dataset.status = status;
+    tk.className = "ticks " + status;
+    tk.innerHTML = status === "sent" ? TICK1 : TICK2;  // static svg, user ka text nahi
+  }
+  function applyReceipts(deliveredUpto, readUpto) {
+    myTicks.forEach((tk, id) => {
+      if (id <= readUpto) setTick(tk, "read");
+      else if (id <= deliveredUpto) setTick(tk, "delivered");
+    });
+  }
+
   // Header ke neeche: typing... / online / last seen
   function updateSub() {
     const c = chats.find((x) => x.id === activeId);
@@ -356,11 +390,13 @@
     $("chat-avatar").replaceChildren(avatarWithDot(c, true));
     renderList();
     await loadMessages(id);
+    markRead();           // padh liya: server ko batao (sender ko neele tick dikhenge)
     $("msg").focus();
   }
   async function loadMessages(id) {
     $("messages").innerHTML = "";
     lastDay = "";
+    myTicks.clear();
     try {
       const msgs = await api(`/api/chats/${id}/messages`);
       if (activeId !== id) return; // tab tak dusri chat khol li
@@ -373,7 +409,15 @@
     if (day !== lastDay) { box.appendChild(el("div", "day", day)); lastDay = day; }
     const b = el("div", "bubble" + (m.user === username ? " mine" : ""));
     b.appendChild(el("div", "", m.text));
-    b.appendChild(el("div", "t", hhmm(m.time)));
+    const t = el("div", "t");
+    t.appendChild(el("span", "", hhmm(m.time)));
+    if (m.user === username) {
+      const tk = el("span", "ticks");
+      setTick(tk, m.status || "sent");
+      t.appendChild(tk);
+      if (m.id) myTicks.set(m.id, tk);
+    }
+    b.appendChild(t);
     box.appendChild(b);
     box.scrollTop = box.scrollHeight;
   }
@@ -421,6 +465,8 @@
           clearTimeout(typingTimer);
           typingTimer = setTimeout(() => { typingNow = false; updateSub(); }, 2000);
         }
+      } else if (d.type === "status") {
+        if (d.chat_id === activeId) applyReceipts(d.delivered_upto, d.read_upto);
       } else if (d.type === "presence") {
         chats.forEach((c) => {
           if (c.other === d.user) { c.online = d.online; if (d.last_seen) c.last_seen = d.last_seen; }
@@ -450,6 +496,25 @@
     if (now - lastTypingSent > 1000) { ws.send(JSON.stringify({ type: "typing", chat_id: activeId })); lastTypingSent = now; }
   }
 
+  /* ---------- Emoji picker ---------- */
+  const EMOJIS = ["😀", "😃", "😄", "😁", "😆", "😅", "😂", "🤣", "😊", "😇", "🙂", "😉", "😍", "🥰", "😘", "😋", "😜", "🤪", "😎", "🤩", "🥳", "😏", "😒", "😔", "😢", "😭", "😤", "😡", "🤯", "😱", "😴", "🤔", "🤗", "🤭", "🙄", "😬", "🤐", "😷", "🤒", "👍", "👎", "👏", "🙌", "🙏", "💪", "👌", "✌️", "🤞", "👋", "🤝", "❤️", "🧡", "💛", "💚", "💙", "💜", "🖤", "💔", "💕", "🔥", "✨", "🎉", "🎂", "🎁", "⭐", "💯", "✅", "❌", "☕", "🍕", "🍔", "🍟", "🍫", "🏏", "⚽", "🎮", "🎵", "📚", "💻", "📱", "🚀", "🌧️", "☀️", "🌙", "🌸", "🐶", "🐱", "👀", "💬"];
+  function buildEmojiPanel() {
+    const panel = $("emoji-panel");
+    EMOJIS.forEach((e) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.textContent = e;
+      b.onclick = () => {
+        const input = $("msg");
+        const pos = input.selectionStart ?? input.value.length;
+        input.setRangeText(e, pos, input.selectionEnd ?? pos, "end");  // cursor ki jagah emoji daalo
+        input.focus();
+      };
+      panel.appendChild(b);
+    });
+  }
+  function toggleEmoji(force) { $("emoji-panel").classList.toggle("open", force); }
+
   /* ---------- Events ---------- */
   $("tab-login").onclick = () => setMode("login");
   $("tab-signup").onclick = () => setMode("signup");
@@ -462,6 +527,10 @@
   $("msg").addEventListener("keydown", (e) => { if (e.key === "Enter") sendMessage(); });
   $("msg").addEventListener("input", sendTyping);
   $("back").onclick = closeChat;
+  buildEmojiPanel();
+  $("emoji-btn").onclick = (e) => { e.stopPropagation(); toggleEmoji(); };
+  document.addEventListener("click", (e) => { if (!e.target.closest("#emoji-panel")) toggleEmoji(false); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") toggleEmoji(false); });
   document.addEventListener("visibilitychange", () => { if (!document.hidden && activeId) markRead(); });
 
   // Page khulte hi: pehle se login hai kya?
