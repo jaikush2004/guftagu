@@ -53,6 +53,30 @@ def get_or_create_private_chat(db, me, other):
     return chat
 
 
+def create_group(db, me, name, usernames):
+    """Naya group banao: aap + chune hue members. Koi valid member nahi toh None."""
+    name = name.strip()
+    if not name:
+        return None
+    seen = {me.id}
+    members = []
+    for u in usernames:
+        user = find_user(db, u)
+        if user and user.id not in seen:  # galat naam aur duplicate chhod do
+            seen.add(user.id)
+            members.append(user)
+    if not members:
+        return None
+    chat = Conversation(is_group=True, name=name[:40])
+    db.add(chat)
+    db.flush()  # id mil jaye
+    db.add(Participant(conversation_id=chat.id, user_id=me.id))
+    db.add_all([Participant(conversation_id=chat.id, user_id=u.id) for u in members])
+    db.commit()
+    db.refresh(chat)
+    return chat
+
+
 def chat_summary(db, chat, me):
     other_name = None
     last_seen = None
@@ -69,6 +93,8 @@ def chat_summary(db, chat, me):
         other_name = other.username if other else None
         if other and other.last_seen:
             last_seen = iso(other.last_seen)
+
+    members = [n for _, n in chat_members(db, chat.id)] if chat.is_group else []
 
     last = (
         db.query(Message)
@@ -101,6 +127,7 @@ def chat_summary(db, chat, me):
         "name": name,
         "is_group": chat.is_group,
         "other": other_name,
+        "members": members,
         "last_seen": last_seen,
         "unread": unread,
         "last_text": last.text if last else "",

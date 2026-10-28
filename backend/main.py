@@ -46,6 +46,11 @@ class NewChat(BaseModel):
     username: str
 
 
+class NewGroup(BaseModel):
+    name: str = Field(min_length=1, max_length=40)
+    members: list[str] = Field(min_length=1, max_length=50)
+
+
 # ---------- Signup / Login ----------
 @app.post("/api/signup", status_code=201)
 def signup(data: Credentials, db: Session = Depends(get_db)):
@@ -89,6 +94,19 @@ def start_chat(data: NewChat, me: User = Depends(get_current_user), db: Session 
         raise HTTPException(status_code=400, detail="Apne aap se chat nahi kar sakte")
     chat = crud.get_or_create_private_chat(db, me, other)
     return add_presence(crud.chat_summary(db, chat, me))
+
+
+@app.post("/api/groups", status_code=201)
+async def create_group(data: NewGroup, me: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    chat = await run_in_threadpool(crud.create_group, db, me, data.name, data.members)
+    if chat is None:
+        raise HTTPException(status_code=400, detail="Group ka naam aur kam se kam ek sahi member chahiye")
+    summary = await run_in_threadpool(crud.chat_summary, db, chat, me)
+    members = await run_in_threadpool(crud.chat_members, db, chat.id)
+    for _, name in members:  # baaki members ki list mein group turant aa jaye
+        if name != me.username:
+            await manager.send_to(name, {"type": "chat_added", "chat_id": chat.id})
+    return add_presence(summary)
 
 
 @app.get("/api/chats/{chat_id}/messages")
