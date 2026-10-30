@@ -1,9 +1,14 @@
+import os
 from datetime import datetime, timezone
 
 from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Text, create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 
-engine = create_engine("sqlite:///guftagu.db", connect_args={"check_same_thread": False})
+# Database ka address env variable se aata hai. Set nahi hai toh purani guftagu.db hi chalegi.
+# Tests alag database use karte hain, taaki aapka asli data kabhi na chhuye.
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///guftagu.db")
+connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
+engine = create_engine(DATABASE_URL, connect_args=connect_args)
 SessionLocal = sessionmaker(bind=engine)
 Base = declarative_base()
 
